@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Brain Stroke Classifier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0b0f1a;
+      color: #eaeaf0;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      height: 100vh;
+    }
+
+    #viewer {
+      position: relative;
+    }
+
+    #panel {
+      padding: 24px;
+      background: #12182a;
+      overflow-y: auto;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 16px;
+      font-weight: 600;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: none;
+      background: #1b2340;
+      color: white;
+    }
+
+    button {
+      margin-top: 24px;
+      padding: 12px;
+      width: 100%;
+      font-size: 1rem;
+      background: #4f7cff;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #6a91ff;
+    }
+
+    .result {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 8px;
+      background: #0e1430;
+      font-size: 1.1rem;
+    }
+
+    .low { color: #4dffb3; }
+    .medium { color: #ffd24d; }
+    .high { color: #ff5c5c; }
+
+    footer {
+      margin-top: 32px;
+      opacity: 0.6;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="viewer"></div>
+
+  <div id="panel">
+    <h1>🧠 Brain Stroke Risk Classifier</h1>
+
+    <p>
+      Interactive demo combining a 3D brain visualization with
+      a simple stroke risk prediction model.
+    </p>
+
+    <label>Age</label>
+    <input id="age" type="number" value="55" />
+
+    <label>Blood Pressure</label>
+    <input id="bp" type="number" value="135" />
+
+    <label>Glucose Level</label>
+    <input id="glucose" type="number" value="120" />
+
+    <label>Smoking Status</label>
+    <select id="smoking">
+      <option value="0">Non-smoker</option>
+      <option value="1">Smoker</option>
+    </select>
+
+    <label>Physical Activity</label>
+    <select id="activity">
+      <option value="0">Low</option>
+      <option value="1">Moderate</option>
+      <option value="2">High</option>
+    </select>
+
+    <button onclick="predict()">Run Classifier</button>
+
+    <div id="output" class="result">
+      Awaiting input…
+    </div>
+
+    <footer>
+      ⚠️ Educational demo only. Not a medical device.
+    </footer>
+  </div>
+
+<script>
+/* ===============================
+   3D BRAIN VISUALIZATION
+================================ */
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0f1a);
+
+const camera = new THREE.PerspectiveCamera(
+  45,
+  (window.innerWidth * 2/3) / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 0, 6);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth * 2/3, window.innerHeight);
+document.getElementById("viewer").appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Lighting
+const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambient);
+
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 5, 5);
+scene.add(light);
+
+// Brain-like mesh
+const geometry = new THREE.IcosahedronGeometry(2.2, 3);
+const material = new THREE.MeshStandardMaterial({
+  color: 0xff8fb1,
+  roughness: 0.35,
+  metalness: 0.1
+});
+const brain = new THREE.Mesh(geometry, material);
+scene.add(brain);
+
+// Stroke highlight
+const strokeMaterial = new THREE.MeshStandardMaterial({
+  color: 0xff2a2a,
+  emissive: 0x550000
+});
+const strokeZone = new THREE.Mesh(
+  new THREE.SphereGeometry(0.5, 32, 32),
+  strokeMaterial
+);
+strokeZone.position.set(0.8, 0.4, 0.6);
+strokeZone.visible = false;
+scene.add(strokeZone);
+
+function animate() {
+  requestAnimationFrame(animate);
+  brain.rotation.y += 0.002;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth * 2/3, window.innerHeight);
+  camera.aspect = (window.innerWidth * 2/3) / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+/* ===============================
+   STROKE CLASSIFIER LOGIC
+================================ */
+
+function predict() {
+  const age = +document.getElementById("age").value;
+  const bp = +document.getElementById("bp").value;
+  const glucose = +document.getElementById("glucose").value;
+  const smoking = +document.getElementById("smoking").value;
+  const activity = +document.getElementById("activity").value;
+
+  // Simple weighted risk model (demo only)
+  let score =
+    age * 0.03 +
+    bp * 0.02 +
+    glucose * 0.025 +
+    smoking * 1.2 -
+    activity * 0.6;
+
+  let risk, cls;
+  if (score < 8) {
+    risk = "Low Stroke Risk";
+    cls = "low";
+    strokeZone.visible = false;
+  } else if (score < 12) {
+    risk = "Moderate Stroke Risk";
+    cls = "medium";
+    strokeZone.visible = true;
+    strokeZone.scale.set(0.7, 0.7, 0.7);
+  } else {
+    risk = "High Stroke Risk";
+    cls = "high";
+    strokeZone.visible = true;
+    strokeZone.scale.set(1, 1, 1);
+  }
+
+  const output = document.getElementById("output");
+  output.className = `result ${cls}`;
+  output.innerHTML = `
+    <strong>${risk}</strong><br>
+    Risk score: ${score.toFixed(2)}
+  `;
+}
+</script>
+
+</body>
+</html>
